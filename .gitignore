@@ -1,0 +1,9 @@
+**/target/
+**/node_modules/
+**/.next/
+**/data/
+**/.idea/
+**/.vscode/
+*.log
+.env
+.DS_Store

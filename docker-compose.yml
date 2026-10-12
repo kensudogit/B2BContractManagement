@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: contracts
+      POSTGRES_USER: contracts_app
+      POSTGRES_PASSWORD: contracts_app
+    ports:
+      - "5435:5432"
+    volumes:
+      - contracts_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contracts_app -d contracts"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    ports:
+      - "8040:8040"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/contracts
+      SPRING_DATASOURCE_USERNAME: contracts_app
+      SPRING_DATASOURCE_PASSWORD: contracts_app
+      DOCUMENT_DIR: /data/documents
+      FRONTEND_ORIGINS: http://localhost:3040,http://127.0.0.1:3040
+    volumes:
+      - contracts_docs:/data/documents
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    ports:
+      - "3040:3040"
+    environment:
+      API_PROXY: http://api:8040
+    depends_on:
+      - api
+
+volumes:
+  contracts_pg:
+  contracts_docs:

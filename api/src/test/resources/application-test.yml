@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:contracts;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+app:
+  jwt-secret: test-secret-must-be-at-least-32-bytes!!
+  jwt-hours: 2
+  document-dir: ./data/test-documents
+  cors-origins: http://localhost:3040
