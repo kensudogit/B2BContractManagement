@@ -1,0 +1,14 @@
+.git
+.cursor
+.claude
+**/.next
+**/node_modules
+**/target
+**/data
+**/.idea
+**/.vscode
+**/*.log
+**/.env
+**/agent-transcripts
+Dockerfile
+docker-compose.yml

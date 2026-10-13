@@ -17,3 +17,4 @@
 - Docker Desktop で Bake/buildx の context がずれる場合は `COMPOSE_BAKE=false` を `.env` に置き、`BUILDX_BUILDER` を外す。
 - web は `./web:/app` + 匿名 `node_modules` ボリューム。Windows では Next の HMR が遅れるので poll を有効化し、古い画面が出たら `.next` 削除のうえ web 再起動。
 - 確認用データは Flyway V3/V4 の `DEMO-*`。既存 DB には migrate で追加される。消して入れ直す場合だけ volume を作り直す。
+- Railway はリポジトリ直下を Nixpacks すると失敗する。ルート `Dockerfile` + `railway.toml` で API（内部 8040）と Next（`$PORT`）を同居させる。Postgres は `PGHOST` / `DATABASE_URL` を JDBC に変換する。

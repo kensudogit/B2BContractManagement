@@ -2,6 +2,7 @@
 const api = process.env.API_PROXY || "http://127.0.0.1:8040";
 
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   webpack: (config, { dev }) => {

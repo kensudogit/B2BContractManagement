@@ -39,6 +39,18 @@ cd ..\web; npm install; npm run dev
 - API: http://localhost:8040
 - PostgreSQL: localhost:5435 / `contracts` / `contracts_app`
 
+## Railway
+
+リポジトリ直下に `pom.xml` / `package.json` がないため、Nixpacks ではビルドできません。
+ルートの `Dockerfile` と `railway.toml` で API と画面を1サービスにまとめて起動します。
+
+1. Postgres プラグインを追加し、アプリサービスから接続する（`PGHOST` 等が入る）
+2. ビルダーは Dockerfile（`railway.toml` 済み）
+3. 任意: `JWT_SECRET` を 32 文字以上で設定
+4. GitHub の `main` へ push すると再デプロイされる
+
+公開 URL の `/login` がヘルスチェックです。デモユーザーは下表どおりです。
+
 デモユーザー（パスワードはすべて `password`）:
 
 | ユーザー | ロール | 確認すること |
