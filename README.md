@@ -36,11 +36,31 @@ cd ..\web; npm install; npm run dev
 
 デモユーザー（パスワードはすべて `password`）:
 
-| ユーザー | ロール |
-|---|---|
-| admin | ADMIN |
-| approver | APPROVER |
-| sales | SALES |
+| ユーザー | ロール | 確認すること |
+|---|---|---|
+| sales | SALES | 起案、申請、差戻し後の再申請、取下げ |
+| approver | APPROVER | 1段目のインボックス、承認・差戻し・却下 |
+| legal | LEGAL | 2段目のインボックス、締結待ちの有効化 |
+| admin | ADMIN | 全ステップの代決、有効化 |
+
+## デモデータでワークフローを確認
+
+Flyway `V3__workflow_demo_data.sql` が契約番号 `DEMO-*` を投入します。再作成後も同じ番号です。
+
+| 契約番号 | 契約状態 | 確認操作 |
+|---|---|---|
+| DEMO-DRAFT-001 | 下書き | sales が承認ステップを付けて申請 |
+| DEMO-REVIEW-001 | 審査中 | approver の承認待ち。legal のインボックスには出ない |
+| DEMO-REVIEW-002 | 審査中 | legal の2段目待ち。1段目は承認済み |
+| DEMO-NDA-001 | 審査中 | approver だけの1段審査 |
+| DEMO-RETURN-001 | 下書き | 差戻し直後。金額120万を直して「再編集して新しい版を確定」→再申請 |
+| DEMO-CANCEL-001 | 下書き | 取下げ履歴を確認して再申請 |
+| DEMO-APPROVED-001 | 承認済 | admin/legal が締結待ちまたは有効化 |
+| DEMO-SIGN-001 | 締結待ち | 締結確認して有効化 |
+| DEMO-ACTIVE-001 | 有効 | 基本契約。個別契約の親 |
+| DEMO-SPOT-001 | 有効 | 基本契約の子 |
+| DEMO-EXPIRE-001 | 有効 | 期限一覧（90日以内） |
+| DEMO-REJECT-001 | 却下 | 却下コメントと終了状態 |
 
 ## 業務フロー
 

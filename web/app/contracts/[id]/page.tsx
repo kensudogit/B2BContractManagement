@@ -76,6 +76,10 @@ export default function ContractDetailPage() {
     [approvals],
   );
   const latestReturn = approvals.find((a) => a.status === "RETURNED");
+  const returnedComment = latestReturn?.histories.filter((h) => h.action === "RETURN").at(-1)?.commentText;
+  const returnedVersion = latestReturn
+    ? detail?.versions.find((v) => v.id === latestReturn.versionId)
+    : undefined;
   const approvers = users.filter((u) => ["APPROVER", "ADMIN", "LEGAL"].includes(u.role));
   const canDecide = !!(open && me && (me.role === "ADMIN" || me.id === open.currentApproverId));
   const canCancel = !!(open && me && (me.role === "ADMIN" || me.id === open.requestedBy));
@@ -99,8 +103,20 @@ export default function ContractDetailPage() {
       {error && <p className="err">{error}</p>}
       {info && <p className="muted">{info}</p>}
 
+      {latestReturn && draft && (
+        <div className="callout">
+          <h3>差戻し後の再編集</h3>
+          <p>差戻し理由: <strong>{returnedComment || "—"}</strong></p>
+          <p className="muted">
+            差し戻された版 {returnedVersion?.versionNo ?? latestReturn.versionNo ?? latestReturn.versionId} は変更しません。
+            内容を直して新しい版を確定すると、再申請の対象はその版に付け替わります。
+          </p>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3>契約内容</h3>
+        <h3>{latestReturn && draft ? "再編集する契約内容" : "契約内容"}</h3>
+        <p className="muted">契約番号: {c.contractNo} / 種別: {TYPE_LABEL[c.type] || c.type}{c.parentContractId ? ` / 親契約 #${c.parentContractId}` : ""}</p>
         {draft ? (
           <div className="grid2">
             <div className="field"><label>名称</label><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
@@ -114,14 +130,17 @@ export default function ContractDetailPage() {
           </div>
         ) : (
           <>
-            <p>契約番号: {c.contractNo} / 種別: {TYPE_LABEL[c.type] || c.type}{c.parentContractId ? ` / 親契約 #${c.parentContractId}` : ""}</p>
             <p>期間: {c.startDate || "—"} 〜 {c.endDate || "—"} / 金額: {c.amount == null ? "—" : `${Number(c.amount).toLocaleString()} ${c.currencyCode}`}</p>
             <p>自動更新: {c.autoRenewal ? "あり" : "なし"} / 予告日数: {c.noticeDays ?? "—"}</p>
           </>
         )}
         <p>当事者: {detail.parties.map((p) => `${p.legalName}（${ROLE_LABEL[p.role] || p.role}）`).join("、") || "未設定"}</p>
         {draft && (
-          <button className="btn secondary" disabled={saving} onClick={() => run("下書きを更新し、新しい版を確定しました。", () => api(`/api/contracts/${c.id}`, {
+          <button className="btn" disabled={saving} onClick={() => run(
+            latestReturn
+              ? "再編集して新しい版を確定しました。下の申請でこの版を送れます。"
+              : "下書きを更新し、新しい版を確定しました。",
+            () => api(`/api/contracts/${c.id}`, {
             method: "PUT",
             body: JSON.stringify({
               rowVersion: c.rowVersion,
@@ -136,13 +155,7 @@ export default function ContractDetailPage() {
               noticeDays: edit.noticeDays ? Number(edit.noticeDays) : null,
               parties: detail.parties.map((p) => ({ partyId: p.partyId, role: p.role })),
             }),
-          }))}>内容を保存して版を更新</button>
-        )}
-        {latestReturn && c.status === "DRAFT" && (
-          <p className="muted" style={{ marginTop: 8 }}>
-            差戻し理由: {latestReturn.histories.filter((h) => h.action === "RETURN").at(-1)?.commentText || "—"}
-            。再申請時は更新後の版が承認対象になります。
-          </p>
+          }))}>{latestReturn ? "再編集して新しい版を確定" : "内容を保存して版を更新"}</button>
         )}
       </div>
 
