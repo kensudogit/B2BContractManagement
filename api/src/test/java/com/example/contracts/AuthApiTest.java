@@ -50,4 +50,14 @@ class AuthApiTest {
                         .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void loginAllowsRailwayOrigin() throws Exception {
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Origin", "https://b2bcontractmanagement-production.up.railway.app")
+                        .content("{\"username\":\"admin\",\"password\":\"password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
 }

@@ -1,6 +1,8 @@
 package com.example.contracts.security;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -58,7 +60,18 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource(@Value("${app.cors-origins}") String origins) {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(Arrays.asList(origins.split(",")));
+        List<String> patterns = new ArrayList<>(List.of(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://*.up.railway.app",
+                "https://*.railway.app"));
+        for (String origin : origins.split(",")) {
+            String trimmed = origin.trim();
+            if (!trimmed.isEmpty() && !patterns.contains(trimmed)) {
+                patterns.add(trimmed);
+            }
+        }
+        cfg.setAllowedOriginPatterns(patterns);
         cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Idempotency-Key"));
         cfg.setAllowCredentials(true);

@@ -23,6 +23,15 @@ fi
 export DOCUMENT_DIR="${DOCUMENT_DIR:-/data/documents}"
 mkdir -p "$DOCUMENT_DIR"
 
+if [[ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]]; then
+  railway_origin="https://${RAILWAY_PUBLIC_DOMAIN}"
+  if [[ -z "${FRONTEND_ORIGINS:-}" ]]; then
+    export FRONTEND_ORIGINS="${railway_origin}"
+  elif [[ ",${FRONTEND_ORIGINS}," != *",${railway_origin},"* ]]; then
+    export FRONTEND_ORIGINS="${FRONTEND_ORIGINS},${railway_origin}"
+  fi
+fi
+
 export SERVER_PORT="${SERVER_PORT:-8040}"
 java -jar /app/api.jar &
 api_pid=$!
