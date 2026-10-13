@@ -63,6 +63,7 @@ public final class ContractDtos {
             BigDecimal amount,
             String currencyCode,
             boolean autoRenewal,
+            Integer noticeDays,
             Long parentContractId,
             Long rowVersion
     ) {
@@ -70,7 +71,7 @@ public final class ContractDtos {
             return new Summary(
                     c.getId(), c.getContractNo(), c.getName(), c.getType(), c.getStatus(),
                     c.getStartDate(), c.getEndDate(), c.getAmount(), c.getCurrencyCode(),
-                    c.isAutoRenewal(), c.getParentContractId(), c.getRowVersion());
+                    c.isAutoRenewal(), c.getNoticeDays(), c.getParentContractId(), c.getRowVersion());
         }
     }
 

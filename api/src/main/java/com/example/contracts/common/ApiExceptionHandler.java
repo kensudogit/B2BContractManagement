@@ -25,6 +25,8 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleOther(Exception ex) {
+        org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class)
+                .error("unhandled api error", ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "処理中にエラーが発生しました");
     }
 

@@ -1,11 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
@@ -18,7 +16,7 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
       setToken(res.accessToken);
-      router.replace("/contracts");
+      window.location.assign("/contracts");
     } catch (err) {
       setError(err instanceof Error ? err.message : "ログインに失敗しました");
     }
@@ -32,7 +30,7 @@ export default function LoginPage() {
   return (
     <div className="login card">
       <h2>企業間契約管理</h2>
-      <p className="muted">JWT でログインします。デモ: admin / approver / sales （パスワードは password）</p>
+      <p className="muted">JWT でログインします。デモ: admin / approver / legal / sales （パスワードは password）</p>
       <form onSubmit={onSubmit}>
         <div className="field" style={{ margin: "12px 0" }}>
           <label>ユーザー名</label>

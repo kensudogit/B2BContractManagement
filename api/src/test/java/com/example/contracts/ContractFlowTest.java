@@ -100,4 +100,70 @@ class ContractFlowTest {
         var active = contracts.activate(created.contract().id(), sales);
         assertThat(active.contract().status()).isEqualTo("ACTIVE");
     }
+
+    @Test
+    void returnThenEditCreatesNewVersionAndResubmit() {
+        var created = draft("C-020");
+        var request = approvals.submit(created.contract().id(),
+                new ApprovalDtos.SubmitRequest(List.of(approver.getId()), "確認"),
+                null, sales);
+        assertThatThrownBy(() -> approvals.returnToDraft(request.id(), new ApprovalDtos.DecisionRequest("  "), approver))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("コメント");
+
+        var returned = approvals.returnToDraft(request.id(), new ApprovalDtos.DecisionRequest("条件を見直してください"), approver);
+        assertThat(returned.status()).isEqualTo("RETURNED");
+        var afterReturn = contracts.get(created.contract().id());
+        assertThat(afterReturn.contract().status()).isEqualTo("DRAFT");
+
+        var updated = contracts.update(created.contract().id(), new ContractDtos.UpdateRequest(
+                afterReturn.contract().rowVersion(), "個別契約（修正）", "SPOT", null,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 9, 30),
+                new BigDecimal("450000"), "JPY", false, null,
+                List.of(new ContractDtos.PartyRef(partyId, "CUSTOMER"))), sales);
+        assertThat(updated.versions()).hasSizeGreaterThan(created.versions().size());
+
+        var second = approvals.submit(created.contract().id(),
+                new ApprovalDtos.SubmitRequest(List.of(approver.getId()), "再申請"),
+                "idem-2", sales);
+        assertThat(second.status()).isEqualTo("REQUESTED");
+        assertThat(second.versionId()).isNotEqualTo(request.versionId());
+    }
+
+    @Test
+    void sequentialStepsThenCancel() {
+        AppUser legal = users.save(AppUser.create("legal", encoder.encode("password"), "法務", "LEGAL"));
+        var created = draft("C-030");
+        var request = approvals.submit(created.contract().id(),
+                new ApprovalDtos.SubmitRequest(List.of(approver.getId(), legal.getId()), "2段階"),
+                null, sales);
+        assertThat(request.steps()).hasSize(2);
+        assertThat(request.steps().get(0).status()).isEqualTo("PENDING");
+        assertThat(request.steps().get(1).status()).isEqualTo("WAITING");
+        assertThat(request.currentApproverId()).isEqualTo(approver.getId());
+        assertThat(approvals.inbox(approver)).hasSize(1);
+        assertThat(approvals.inbox(legal)).isEmpty();
+        assertThatThrownBy(() -> approvals.approve(request.id(), new ApprovalDtos.DecisionRequest("先回り"), legal))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("承認者ではありません");
+
+        var mid = approvals.approve(request.id(), new ApprovalDtos.DecisionRequest("1段目OK"), approver);
+        assertThat(mid.status()).isEqualTo("IN_PROGRESS");
+        assertThat(mid.steps().get(1).status()).isEqualTo("PENDING");
+        assertThat(contracts.get(created.contract().id()).contract().status()).isEqualTo("UNDER_REVIEW");
+        assertThat(mid.currentApproverId()).isEqualTo(legal.getId());
+        assertThat(approvals.inbox(legal)).hasSize(1);
+
+        var cancelled = approvals.cancel(request.id(), new ApprovalDtos.DecisionRequest("取りやめ"), sales);
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
+        assertThat(contracts.get(created.contract().id()).contract().status()).isEqualTo("DRAFT");
+    }
+
+    private ContractDtos.Detail draft(String no) {
+        return contracts.create(new ContractDtos.CreateRequest(
+                no, "個別契約", "SPOT", null,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 9, 30),
+                new BigDecimal("500000"), "JPY", false, null,
+                List.of(new ContractDtos.PartyRef(partyId, "CUSTOMER"))), sales);
+    }
 }

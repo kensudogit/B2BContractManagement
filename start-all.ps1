@@ -1,5 +1,8 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
+$env:COMPOSE_BAKE = "false"
+Remove-Item Env:BUILDX_BUILDER -ErrorAction SilentlyContinue
+docker context use desktop-linux | Out-Null
 
 Write-Host "Starting PostgreSQL on :5435 ..."
 docker compose up -d db

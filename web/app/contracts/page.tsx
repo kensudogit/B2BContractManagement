@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, type ContractSummary, type Page } from "@/lib/api";
+import { api, STATUS_LABEL, TYPE_LABEL, type ContractSummary, type Page } from "@/lib/api";
 
 export default function ContractsPage() {
   const [q, setQ] = useState("");
@@ -44,7 +44,7 @@ export default function ContractsPage() {
             <select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">すべて</option>
               {["DRAFT","UNDER_REVIEW","APPROVED","PENDING_SIGNATURE","ACTIVE","EXPIRED","TERMINATED","REJECTED"].map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>
               ))}
             </select>
           </div>
@@ -67,8 +67,8 @@ export default function ContractsPage() {
                 <tr key={c.id}>
                   <td><Link href={`/contracts/${c.id}`}>{c.contractNo}</Link></td>
                   <td>{c.name}</td>
-                  <td>{c.type}</td>
-                  <td><span className={`badge ${c.status}`}>{c.status}</span></td>
+                  <td>{TYPE_LABEL[c.type] || c.type}</td>
+                  <td><span className={`badge ${c.status}`}>{STATUS_LABEL[c.status] || c.status}</span></td>
                   <td>{c.startDate || "—"} 〜 {c.endDate || "—"}</td>
                   <td>{c.amount == null ? "—" : `${c.amount.toLocaleString()} ${c.currencyCode}`}</td>
                 </tr>

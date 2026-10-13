@@ -195,9 +195,20 @@ public class ContractService {
         }
     }
 
+    public void requireReadyForApproval(Contract c) {
+        if (contractParties.findByContractId(c.getId()).isEmpty()) {
+            throw ApiException.badRequest("承認申請の前に当事者を1件以上登録してください");
+        }
+        latestVersion(c.getId());
+    }
+
     public ContractVersion latestVersion(Long contractId) {
         return versions.findTopByContractIdOrderByVersionNoDesc(contractId)
                 .orElseThrow(() -> ApiException.badRequest("確定版がありません。先に契約を保存してください"));
+    }
+
+    public ContractVersion requireVersion(Long versionId) {
+        return versions.findById(versionId).orElseThrow(() -> ApiException.notFound("契約版が見つかりません"));
     }
 
     public void markUnderReview(Contract c) {

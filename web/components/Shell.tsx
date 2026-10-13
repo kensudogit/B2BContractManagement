@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getToken, setToken } from "@/lib/api";
 
@@ -15,16 +15,30 @@ const LINKS = [
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(path === "/login");
 
   useEffect(() => {
-    if (!getToken()) router.replace("/login");
-    else setReady(true);
-  }, [router]);
+    if (path === "/login") {
+      setReady(true);
+      return;
+    }
+    if (!getToken()) {
+      window.location.replace("/login");
+      return;
+    }
+    setReady(true);
+  }, [path]);
 
   if (path === "/login") return <>{children}</>;
-  if (!ready) return <div className="main">読み込み中...</div>;
+  if (!ready) {
+    return (
+      <div className="login card">
+        <h2>企業間契約管理</h2>
+        <p className="muted">ログインが必要です。</p>
+        <a className="btn" href="/login">ログインへ</a>
+      </div>
+    );
+  }
 
   return (
     <div className="shell">
@@ -40,7 +54,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           style={{ marginTop: 24, width: "100%" }}
           onClick={() => {
             setToken(null);
-            router.replace("/login");
+            window.location.replace("/login");
           }}
         >
           ログアウト

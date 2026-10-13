@@ -37,9 +37,13 @@ services:
       - "3040:3040"
     environment:
       API_PROXY: http://api:8040
+    volumes:
+      - ./web:/app
+      - web_node_modules:/app/node_modules
     depends_on:
       - api
 
 volumes:
   contracts_pg:
   contracts_docs:
+  web_node_modules:

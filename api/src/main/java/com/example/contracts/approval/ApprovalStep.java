@@ -35,12 +35,12 @@ public class ApprovalStep {
 
     public void setStatus(String status) { this.status = status; }
 
-    public static ApprovalStep of(Long requestId, int stepOrder, Long approverId) {
+    public static ApprovalStep of(Long requestId, int stepOrder, Long approverId, String status) {
         ApprovalStep s = new ApprovalStep();
         s.requestId = requestId;
         s.stepOrder = stepOrder;
         s.approverId = approverId;
-        s.status = "PENDING";
+        s.status = status;
         return s;
     }
 }

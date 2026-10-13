@@ -11,8 +11,18 @@
 
 ## 起動
 
+Docker Desktop の context は `desktop-linux` を使います。Bake が context とずれると
+`use docker --context=desktop-linux buildx` でビルドが即終了するので、プロジェクトの `.env` で `COMPOSE_BAKE=false` にしています。
+
 ```powershell
 cd C:\devlop\B2BContractManagement
+docker context use desktop-linux
+docker compose up --build
+```
+
+ホストで API / 画面だけ動かす場合:
+
+```powershell
 docker compose up -d db
 cd api; mvn spring-boot:run
 cd ..\web; npm install; npm run dev
@@ -52,5 +62,4 @@ mvn test
 - MinIO / マルウェアスキャン / 電子署名連携
 - Testcontainers / Playwright E2E / OpenAPI 公開
 - テナント（複数会社）分離、代理承認、通知メール
-- 法令・保存年限の断定的な判定
-"# B2BContractManagement" 
+- 法令・保存年限の断定的な判定 

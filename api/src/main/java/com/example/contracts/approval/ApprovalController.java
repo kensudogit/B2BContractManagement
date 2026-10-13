@@ -48,4 +48,10 @@ public class ApprovalController {
     public ApprovalDtos.RequestView reject(@PathVariable Long id, @RequestBody(required = false) ApprovalDtos.DecisionRequest body) {
         return approvals.reject(id, body, CurrentUser.require());
     }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','LEGAL','SALES')")
+    public ApprovalDtos.RequestView cancel(@PathVariable Long id, @RequestBody(required = false) ApprovalDtos.DecisionRequest body) {
+        return approvals.cancel(id, body, CurrentUser.require());
+    }
 }

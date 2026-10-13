@@ -52,8 +52,15 @@ public class ApprovalService {
         if (!"DRAFT".equals(contract.getStatus())) {
             throw ApiException.conflict("下書きの契約のみ承認申請できます");
         }
+        contracts.requireReadyForApproval(contract);
         if (requests.findFirstByContractIdAndStatusIn(contractId, List.copyOf(OPEN)).isPresent()) {
             throw ApiException.conflict("未完了の承認申請があります");
+        }
+        if (req == null || req.approverIds() == null || req.approverIds().isEmpty()) {
+            throw ApiException.badRequest("承認者を1人以上指定してください");
+        }
+        if (req.approverIds().stream().distinct().count() != req.approverIds().size()) {
+            throw ApiException.badRequest("同じ承認者を複数ステップに指定できません");
         }
         ContractVersion version = contracts.latestVersion(contractId);
         ApprovalRequest request = requests.save(ApprovalRequest.create(
@@ -66,13 +73,10 @@ public class ApprovalService {
             if (!Set.of("APPROVER", "ADMIN", "LEGAL").contains(approver.getRole())) {
                 throw ApiException.badRequest("承認ロールのないユーザーは指定できません");
             }
-            steps.save(ApprovalStep.of(request.getId(), order++, approverId));
+            String stepStatus = order == 1 ? "PENDING" : "WAITING";
+            steps.save(ApprovalStep.of(request.getId(), order++, approverId, stepStatus));
         }
-        if (req.comment() != null && !req.comment().isBlank()) {
-            histories.save(ApprovalHistory.of(request.getId(), actor.getId(), "SUBMIT", req.comment()));
-        } else {
-            histories.save(ApprovalHistory.of(request.getId(), actor.getId(), "SUBMIT", null));
-        }
+        histories.save(ApprovalHistory.of(request.getId(), actor.getId(), "SUBMIT", blankToNull(req.comment())));
         contracts.markUnderReview(contract);
         audit.record(actor.getId(), "APPROVAL", request.getId(), "SUBMIT");
         return toView(request);
@@ -93,6 +97,24 @@ public class ApprovalService {
         return decide(requestId, actor, "REJECT", req == null ? null : req.comment());
     }
 
+    @Transactional
+    public ApprovalDtos.RequestView cancel(Long requestId, ApprovalDtos.DecisionRequest req, AppUser actor) {
+        ApprovalRequest request = require(requestId);
+        if (!OPEN.contains(request.getStatus())) {
+            throw ApiException.conflict("この申請は既に完了しています");
+        }
+        if (!request.getRequestedBy().equals(actor.getId()) && !"ADMIN".equals(actor.getRole())) {
+            throw ApiException.forbidden("申請者または管理者だけが取下げできます");
+        }
+        request.setStatus("CANCELLED");
+        closeRemainingSteps(steps.findByRequestIdOrderByStepOrderAsc(requestId), null, "CANCELLED");
+        histories.save(ApprovalHistory.of(requestId, actor.getId(), "CANCEL", blankToNull(req == null ? null : req.comment())));
+        requests.save(request);
+        contracts.applyApprovalOutcome(contracts.require(request.getContractId()), "RETURNED");
+        audit.record(actor.getId(), "APPROVAL", request.getId(), "CANCEL");
+        return toView(request);
+    }
+
     @Transactional(readOnly = true)
     public ApprovalDtos.RequestView get(Long requestId) {
         return toView(require(requestId));
@@ -108,11 +130,16 @@ public class ApprovalService {
         return steps.findByApproverIdAndStatus(actor.getId(), "PENDING").stream()
                 .map(step -> {
                     ApprovalRequest request = require(step.getRequestId());
+                    if (!OPEN.contains(request.getStatus())) {
+                        return null;
+                    }
+                    Contract contract = contracts.require(request.getContractId());
                     return new ApprovalDtos.InboxItem(
-                            request.getId(), request.getContractId(), request.getVersionId(),
-                            request.getStatus(), step.getStepOrder());
+                            request.getId(), request.getContractId(), contract.getContractNo(), contract.getName(),
+                            request.getVersionId(), request.getStatus(), step.getStepOrder(),
+                            displayName(request.getRequestedBy()));
                 })
-                .filter(item -> OPEN.contains(item.requestStatus()))
+                .filter(item -> item != null)
                 .toList();
     }
 
@@ -120,6 +147,9 @@ public class ApprovalService {
         ApprovalRequest request = require(requestId);
         if (!OPEN.contains(request.getStatus())) {
             throw ApiException.conflict("この申請は既に完了しています");
+        }
+        if (("RETURN".equals(action) || "REJECT".equals(action)) && (comment == null || comment.isBlank())) {
+            throw ApiException.badRequest("差戻し・却下にはコメントが必要です");
         }
         List<ApprovalStep> stepList = steps.findByRequestIdOrderByStepOrderAsc(requestId);
         ApprovalStep current = stepList.stream()
@@ -132,10 +162,11 @@ public class ApprovalService {
         if ("APPROVE".equals(action)) {
             current.setStatus("APPROVED");
             steps.save(current);
-            histories.save(ApprovalHistory.of(requestId, actor.getId(), "APPROVE", comment));
-            boolean remaining = stepList.stream()
-                    .anyMatch(s -> !s.getId().equals(current.getId()) && "PENDING".equals(s.getStatus()));
-            if (remaining) {
+            histories.save(ApprovalHistory.of(requestId, actor.getId(), "APPROVE", blankToNull(comment)));
+            ApprovalStep next = nextOpenStep(stepList, current);
+            if (next != null) {
+                next.setStatus("PENDING");
+                steps.save(next);
                 request.setStatus("IN_PROGRESS");
             } else {
                 request.setStatus("APPROVED");
@@ -144,14 +175,16 @@ public class ApprovalService {
         } else if ("RETURN".equals(action)) {
             current.setStatus("RETURNED");
             steps.save(current);
+            closeRemainingSteps(stepList, current, "CANCELLED");
             request.setStatus("RETURNED");
-            histories.save(ApprovalHistory.of(requestId, actor.getId(), "RETURN", comment));
+            histories.save(ApprovalHistory.of(requestId, actor.getId(), "RETURN", comment.trim()));
             contracts.applyApprovalOutcome(contracts.require(request.getContractId()), "RETURNED");
         } else if ("REJECT".equals(action)) {
             current.setStatus("REJECTED");
             steps.save(current);
+            closeRemainingSteps(stepList, current, "CANCELLED");
             request.setStatus("REJECTED");
-            histories.save(ApprovalHistory.of(requestId, actor.getId(), "REJECT", comment));
+            histories.save(ApprovalHistory.of(requestId, actor.getId(), "REJECT", comment.trim()));
             contracts.applyApprovalOutcome(contracts.require(request.getContractId()), "REJECTED");
         } else {
             throw ApiException.badRequest("未知の承認操作です");
@@ -161,19 +194,57 @@ public class ApprovalService {
         return toView(request);
     }
 
+    private ApprovalStep nextOpenStep(List<ApprovalStep> stepList, ApprovalStep current) {
+        return stepList.stream()
+                .filter(s -> !s.getId().equals(current.getId()))
+                .filter(s -> "WAITING".equals(s.getStatus()) || "PENDING".equals(s.getStatus()))
+                .min(java.util.Comparator.comparing(ApprovalStep::getStepOrder))
+                .orElse(null);
+    }
+
+    private void closeRemainingSteps(List<ApprovalStep> stepList, ApprovalStep current, String status) {
+        stepList.stream()
+                .filter(s -> current == null || !s.getId().equals(current.getId()))
+                .filter(s -> "WAITING".equals(s.getStatus()) || "PENDING".equals(s.getStatus()))
+                .forEach(s -> {
+                    s.setStatus(status);
+                    steps.save(s);
+                });
+    }
+
     private ApprovalRequest require(Long id) {
         return requests.findById(id).orElseThrow(() -> ApiException.notFound("承認申請が見つかりません"));
     }
 
     private ApprovalDtos.RequestView toView(ApprovalRequest request) {
+        Contract contract = contracts.require(request.getContractId());
+        ContractVersion version = contracts.requireVersion(request.getVersionId());
         List<ApprovalDtos.StepView> stepViews = steps.findByRequestIdOrderByStepOrderAsc(request.getId()).stream()
-                .map(s -> new ApprovalDtos.StepView(s.getId(), s.getStepOrder(), s.getApproverId(), s.getStatus()))
+                .map(s -> new ApprovalDtos.StepView(
+                        s.getId(), s.getStepOrder(), s.getApproverId(), displayName(s.getApproverId()), s.getStatus()))
                 .toList();
         List<ApprovalDtos.HistoryView> historyViews = histories.findByRequestIdOrderByActedAtAsc(request.getId()).stream()
-                .map(h -> new ApprovalDtos.HistoryView(h.getId(), h.getActorId(), h.getAction(), h.getCommentText(), h.getActedAt()))
+                .map(h -> new ApprovalDtos.HistoryView(
+                        h.getId(), h.getActorId(), displayName(h.getActorId()), h.getAction(), h.getCommentText(), h.getActedAt()))
                 .toList();
+        ApprovalDtos.StepView current = stepViews.stream()
+                .filter(s -> "PENDING".equals(s.status()))
+                .findFirst()
+                .orElse(null);
         return new ApprovalDtos.RequestView(
-                request.getId(), request.getContractId(), request.getVersionId(), request.getStatus(),
-                request.getRequestedBy(), request.getRequestedAt(), stepViews, historyViews);
+                request.getId(), request.getContractId(), contract.getContractNo(), contract.getName(),
+                request.getVersionId(), version.getVersionNo(), request.getStatus(),
+                request.getRequestedBy(), displayName(request.getRequestedBy()), request.getRequestedAt(),
+                current == null ? null : current.stepOrder(),
+                current == null ? null : current.approverId(),
+                stepViews, historyViews);
+    }
+
+    private String displayName(Long userId) {
+        return users.findById(userId).map(AppUser::getDisplayName).orElse("不明");
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
