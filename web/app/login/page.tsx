@@ -7,9 +7,13 @@ export default function LoginPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  async function doLogin() {
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
     setError("");
+    setBusy(true);
     try {
       const res = await api<{ accessToken: string }>("/api/auth/login", {
         method: "POST",
@@ -19,12 +23,8 @@ export default function LoginPage() {
       window.location.assign("/contracts");
     } catch (err) {
       setError(err instanceof Error ? err.message : "ログインに失敗しました");
+      setBusy(false);
     }
-  }
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    await doLogin();
   }
 
   return (
@@ -41,7 +41,7 @@ export default function LoginPage() {
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         {error && <p className="err">{error}</p>}
-        <button className="btn" type="submit" onClick={() => { void doLogin(); }}>ログイン</button>
+        <button className="btn" type="submit" disabled={busy}>{busy ? "ログイン中..." : "ログイン"}</button>
       </form>
     </div>
   );

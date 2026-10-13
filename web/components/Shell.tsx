@@ -13,6 +13,13 @@ const LINKS = [
   { href: "/parties", label: "取引先" },
 ];
 
+function navActive(href: string, path: string): boolean {
+  if (href === "/contracts") {
+    return path === "/contracts" || /^\/contracts\/\d+/.test(path);
+  }
+  return path === href || path.startsWith(`${href}/`);
+}
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [ready, setReady] = useState(path === "/login");
@@ -45,7 +52,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <aside className="side">
         <h1>企業間契約管理</h1>
         {LINKS.map((l) => (
-          <Link key={l.href} href={l.href} className={path.startsWith(l.href) ? "active" : ""}>
+          <Link key={l.href} href={l.href} className={navActive(l.href, path) ? "active" : ""}>
             {l.label}
           </Link>
         ))}

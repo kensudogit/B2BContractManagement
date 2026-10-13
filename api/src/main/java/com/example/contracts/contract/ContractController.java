@@ -2,7 +2,6 @@ package com.example.contracts.contract;
 
 import java.util.List;
 
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.contracts.approval.ApprovalDtos;
 import com.example.contracts.approval.ApprovalService;
+import com.example.contracts.common.PageResponse;
 import com.example.contracts.document.DocumentService;
 import com.example.contracts.security.CurrentUser;
 
@@ -38,7 +38,7 @@ public class ContractController {
     }
 
     @GetMapping({"", "/page"})
-    public Page<ContractDtos.Summary> list(
+    public PageResponse<ContractDtos.Summary> list(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type,
@@ -46,7 +46,7 @@ public class ContractController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "desc") String dir) {
-        return contracts.search(q, status, type, page, size, sort, dir);
+        return PageResponse.of(contracts.search(q, status, type, page, size, sort, dir));
     }
 
     @GetMapping("/expiring")
