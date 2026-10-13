@@ -1,0 +1,11 @@
+# 06 Spring Security / セキュリティ
+- 認証: 組織のOIDC/SSOを優先。必要ならSpring Security OAuth2 Resource Serverを使用。
+- 認可: RBAC（ADMIN, LEGAL, SALES, FINANCE, APPROVER, VIEWER）+ 契約所属部門・機密区分によるオブジェクトレベル認可。
+- 全APIで認可。`@PreAuthorize`とサービス層での契約単位チェックを併用。
+- 参照実装のデモは JWT。アクセストークンは `Authorization: Bearer` と Cookie `contracts_access_token`（Path=/, SameSite=Lax）に書く。Next middleware の未ログイン判定用。本番では HttpOnly / Secure と CSRF 方針を再設計する。
+- 承認申請は ADMIN/LEGAL/SALES、判定は ADMIN/APPROVER/LEGAL、取下げは ADMIN/LEGAL/SALES かつ申請者または ADMIN。サービス層でも現ステップの承認者を検証する。
+- HTTPS、CORS許可オリジン制限、入力検証、SQLパラメータ化、ファイル検査。
+- 契約書はS3互換ストレージに保存し、暗号化・キー管理・短命署名URL・アクセス記録を採用。
+- 監査ログは追記専用とし、改ざん対策・保持期間・閲覧権限を定義。
+- パスワード、トークン、契約本文、個人情報、署名URLをログ出力しない。
+- Secretsは環境ごとに安全な管理基盤から供給する。

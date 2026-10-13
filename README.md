@@ -16,19 +16,24 @@ Docker Desktop の context は `desktop-linux` を使います。Bake が contex
 
 ```powershell
 cd C:\devlop\B2BContractManagement
-docker context use desktop-linux
-docker compose up --build
+.\start-all.ps1
 ```
 
-ホストで API / 画面だけ動かす場合:
+`start-all.ps1` は Docker Compose で db / api / web を起動します。Bake ずれ対策で `COMPOSE_BAKE=false` を入れています。手で起動する場合:
+
+```powershell
+docker context use desktop-linux
+docker compose up --build -d
+```
+
+ホストで API / 画面だけ動かす場合（Docker の api/web は止める）:
 
 ```powershell
 docker compose up -d db
+docker compose stop api web
 cd api; mvn spring-boot:run
 cd ..\web; npm install; npm run dev
 ```
-
-または `.\start-all.ps1`
 
 - UI: http://localhost:3040
 - API: http://localhost:8040
@@ -45,7 +50,7 @@ cd ..\web; npm install; npm run dev
 
 ## デモデータでワークフローを確認
 
-Flyway `V3__workflow_demo_data.sql` が契約番号 `DEMO-*` を投入します。再作成後も同じ番号です。
+Flyway `V3__workflow_demo_data.sql` と `V4__return_needs_reedit.sql` が契約番号 `DEMO-*` を投入します。再作成後も同じ番号です。
 
 | 契約番号 | 契約状態 | 確認操作 |
 |---|---|---|
